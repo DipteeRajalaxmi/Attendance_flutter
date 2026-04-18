@@ -4,6 +4,8 @@ import 'providers/auth_provider.dart';
 import 'providers/attendance_provider.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/main_screen.dart';
+import 'package:attendance_app/providers/leave_provider.dart';
+
 
 void main() {
   runApp(
@@ -11,6 +13,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => AttendanceProvider()),
+        ChangeNotifierProvider(create: (_) => LeaveProvider()),
       ],
       child: const WorkEyeApp(),
     ),

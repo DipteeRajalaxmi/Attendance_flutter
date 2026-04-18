@@ -12,6 +12,8 @@ class AttendanceLog {
   final double? clockInLongitude;
   final double? clockOutLatitude;
   final double? clockOutLongitude;
+  final String? clockIn;
+  final String? clockOut;
 
   AttendanceLog({
     required this.id,
@@ -27,6 +29,8 @@ class AttendanceLog {
     this.clockInLongitude,
     this.clockOutLatitude,
     this.clockOutLongitude,
+    this.clockIn,
+    this.clockOut,
   });
 
   factory AttendanceLog.fromJson(Map<String, dynamic> json) {
@@ -44,6 +48,8 @@ class AttendanceLog {
       clockInLongitude:   (json['clock_in_longitude'] as num?)?.toDouble(),
       clockOutLatitude:   (json['clock_out_latitude'] as num?)?.toDouble(),
       clockOutLongitude:  (json['clock_out_longitude'] as num?)?.toDouble(),
+      clockIn:  json['clock_in_time'],
+      clockOut: json['clock_out_time'],
     );
   }
 
@@ -110,10 +116,12 @@ class GeofenceInfo {
 class CalendarDay {
   final String date;       // "2026-04-15"
   final int day;
-  final String status;     // present | half_day | on_leave | no_record
+  final String status;     // present | half_day | absent | on_leave | no_record
   final String? workType;
   final int? durationMinutes;
   final bool isLate;
+  final String? clockIn;
+  final String? clockOut;
 
   CalendarDay({
     required this.date,
@@ -122,6 +130,8 @@ class CalendarDay {
     this.workType,
     this.durationMinutes,
     required this.isLate,
+    this.clockIn,
+  this.clockOut,
   });
 
   factory CalendarDay.fromJson(Map<String, dynamic> json) {
@@ -132,6 +142,8 @@ class CalendarDay {
       workType:        json['work_type'],
       durationMinutes: json['duration_minutes'],
       isLate:          json['is_late'] ?? false,
+      clockIn: json['clock_in_time'],
+      clockOut: json['clock_out_time'],
     );
   }
 }
@@ -143,6 +155,8 @@ class MonthlyCalendar {
   final int present;
   final int halfDay;
   final int onLeave;
+  final int absent;
+
 
   MonthlyCalendar({
     required this.year,
@@ -151,6 +165,8 @@ class MonthlyCalendar {
     required this.present,
     required this.halfDay,
     required this.onLeave,
+    required this.absent,
+
   });
 
   factory MonthlyCalendar.fromJson(Map<String, dynamic> json) {
@@ -162,6 +178,7 @@ class MonthlyCalendar {
       present: summary['present']  ?? 0,
       halfDay: summary['half_day'] ?? 0,
       onLeave: summary['on_leave'] ?? 0,
+      absent:  summary['absent']   ?? 0,
     );
   }
 }

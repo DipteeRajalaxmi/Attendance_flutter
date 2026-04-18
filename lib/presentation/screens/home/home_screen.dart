@@ -7,6 +7,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/attendance_provider.dart';
 import '../../../data/models/attendance_model.dart';
 import '../../../data/services/location_service.dart';
+import '../../../data/repositories/attendance_repository.dart';
 import '../auth/login_screen.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
@@ -100,7 +101,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _handleClockAction(bool isClockedIn) async {
     HapticFeedback.mediumImpact();
 
-    _showLocationSheet(loading: true, address: '', lat: 0, lon: 0, isClockedIn: isClockedIn);
+    // Show loading sheet while getting GPS
+    _showLocationSheet(
+      loading: true, address: '', lat: 0, lon: 0,
+      isClockedIn: isClockedIn, geoInfo: null,
+    );
 
     final loc = await LocationService.getCurrentLocation();
     if (!mounted) return;
@@ -111,12 +116,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
 
+    // Check geofence BEFORE showing confirmation sheet
+    Map<String, dynamic>? geoInfo;
+    if (!isClockedIn) {
+      geoInfo = await AttendanceRepository.checkLocation(
+        latitude:  loc.latitude,
+        longitude: loc.longitude,
+      );
+    }
+
     final confirmed = await _showLocationSheet(
       loading:     false,
       address:     loc.address,
       lat:         loc.latitude,
       lon:         loc.longitude,
       isClockedIn: isClockedIn,
+      geoInfo:     geoInfo,       // ← pass geo info to sheet
     );
 
     if (confirmed != true || !mounted) return;
@@ -131,38 +146,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       HapticFeedback.heavyImpact();
       if (!isClockedIn) _startLiveTimer();
       else              _liveTimer?.cancel();
-      final geo = provider.lastGeo;
-      _showSuccess(isClockedIn
-          ? provider.successMessage ?? 'Clocked out successfully'
-          : geo?.isWfo == true
-              ? '✅ Clocked In — Working from Office'
-              : '✅ Clocked In — Working from Home');
+      _showSuccess(provider.successMessage ??
+          (isClockedIn ? 'Clocked out successfully' : 'Clocked in successfully'));
     } else {
       _showError(provider.errorMessage ?? 'Action failed');
       provider.clearMessages();
     }
   }
 
+
   Future<bool?> _showLocationSheet({
-    required bool loading,
-    required String address,
-    required double lat,
-    required double lon,
-    required bool isClockedIn,
-  }) {
-    return showModalBottomSheet<bool>(
-      context: context,
-      isDismissible: !loading,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _LocationBottomSheet(
-        loading:     loading,
-        address:     address,
-        latitude:    lat,
-        longitude:   lon,
-        isClockedIn: isClockedIn,
-      ),
-    );
-  }
+  required bool loading,
+  required String address,
+  required double lat,
+  required double lon,
+  required bool isClockedIn,
+  required Map<String, dynamic>? geoInfo,   
+}) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isDismissible: !loading,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _LocationBottomSheet(
+      loading:     loading,
+      address:     address,
+      latitude:    lat,
+      longitude:   lon,
+      isClockedIn: isClockedIn,
+      geoInfo:     geoInfo,              
+    ),
+  );
+}
 
   void _showSuccess(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
     content: Text(msg, style: const TextStyle(color: _white, fontWeight: FontWeight.w600)),
@@ -272,6 +286,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               style: const TextStyle(color: _blue, fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
+          const SizedBox(width: 8),
+        GestureDetector(
+          onTap: () async {
+            await context.read<AuthProvider>().logout();
+            if (!mounted) return;
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+            );
+          },
+          child: Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: _redLight,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _red.withOpacity(0.2)),
+            ),
+            child: const Icon(Icons.logout_rounded, color: _red, size: 18),
+          ),
+        ),
       ],
     );
   }
@@ -615,14 +649,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return '${m.toString().padLeft(2,'0')}:${s.toString().padLeft(2,'0')}';
   }
 }
-
-// ── Location bottom sheet ─────────────────────────────────────────────────────
 class _LocationBottomSheet extends StatelessWidget {
-  final bool   loading;
-  final String address;
-  final double latitude;
-  final double longitude;
-  final bool   isClockedIn;
+  final bool                 loading;
+  final String               address;
+  final double               latitude;
+  final double               longitude;
+  final bool                 isClockedIn;
+  final Map<String, dynamic>? geoInfo;     // ← new
 
   const _LocationBottomSheet({
     required this.loading,
@@ -630,59 +663,174 @@ class _LocationBottomSheet extends StatelessWidget {
     required this.latitude,
     required this.longitude,
     required this.isClockedIn,
+    this.geoInfo,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isWfo      = geoInfo?['is_inside'] == true;
+    final distance   = geoInfo?['distance'] as num?;
+    final officeName = geoInfo?['office_name'] as String?;
+    final radius     = geoInfo?['radius'] as num?;
+
+    String distanceLabel = '';
+    if (distance != null) {
+      distanceLabel = distance >= 1000
+          ? '${(distance / 1000).toStringAsFixed(1)}km'
+          : '${distance.toInt()}m';
+    }
+
     return Container(
       decoration: const BoxDecoration(
-        color: _white,
+        color: Color(0xFFFFFFFF),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Handle bar
           Container(
             width: 40, height: 4,
             decoration: BoxDecoration(
-              color: _border,
+              color: const Color(0xFFE5E7EB),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(height: 20),
 
           if (loading) ...[
-            const CircularProgressIndicator(color: _blue, strokeWidth: 2.5),
+            const CircularProgressIndicator(
+                color: Color(0xFF2563EB), strokeWidth: 2.5),
             const SizedBox(height: 16),
             const Text('Getting your location...',
-                style: TextStyle(color: _textSec, fontSize: 14)),
-            const SizedBox(height: 8),
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 14)),
           ] else ...[
+
             Text(
               isClockedIn ? 'Confirm Clock Out' : 'Confirm Clock In',
               style: const TextStyle(
-                color: _textPri, fontSize: 18, fontWeight: FontWeight.w700,
+                color: Color(0xFF111827), fontSize: 18,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 20),
 
+            // ── WFH warning banner (only shown when clocking IN and outside) ──
+            if (!isClockedIn && geoInfo != null && !isWfo) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: const Color(0xFFD97706).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded,
+                        color: Color(0xFFD97706), size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Outside office radius',
+                            style: TextStyle(
+                              color: Color(0xFFD97706),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            officeName != null && distanceLabel.isNotEmpty
+                                ? 'You are $distanceLabel from $officeName. '
+                                  'This will be marked as WFH.'
+                                : 'You are outside the office. '
+                                  'This will be marked as WFH.',
+                            style: const TextStyle(
+                              color: Color(0xFF92400E),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            // ── WFO confirmation banner ────────────────────────────────────
+            if (!isClockedIn && geoInfo != null && isWfo) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: const Color(0xFF16A34A).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.business_rounded,
+                        color: Color(0xFF16A34A), size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Inside office radius',
+                            style: TextStyle(
+                              color: Color(0xFF16A34A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            officeName != null
+                                ? 'You are ${distanceLabel.isNotEmpty ? "$distanceLabel from " : "at "}$officeName. '
+                                  'This will be marked as WFO.'
+                                : 'You are inside the office. Will be marked as WFO.',
+                            style: const TextStyle(
+                              color: Color(0xFF166534),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            // ── GPS location row ───────────────────────────────────────────
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _bg,
+                color: const Color(0xFFF8FAFF),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _border),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
               ),
               child: Row(
                 children: [
                   Container(
                     width: 42, height: 42,
                     decoration: BoxDecoration(
-                      color: _blueLight,
+                      color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.location_on_rounded, color: _blue, size: 22),
+                    child: const Icon(Icons.location_on_rounded,
+                        color: Color(0xFF2563EB), size: 22),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -690,20 +838,26 @@ class _LocationBottomSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('Your location',
-                            style: TextStyle(color: _textHint, fontSize: 11,
-                                fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                            style: TextStyle(
+                              color: Color(0xFF9CA3AF), fontSize: 11,
+                              fontWeight: FontWeight.w600, letterSpacing: 0.5,
+                            )),
                         const SizedBox(height: 3),
                         Text(
                           address.isNotEmpty ? address : 'Fetching address...',
                           style: const TextStyle(
-                            color: _textPri, fontSize: 13, fontWeight: FontWeight.w500,
+                            color: Color(0xFF111827), fontSize: 13,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
-                          style: const TextStyle(color: _textHint, fontSize: 11,
-                              fontFamily: 'monospace'),
+                          '${latitude.toStringAsFixed(5)}, '
+                          '${longitude.toStringAsFixed(5)}',
+                          style: const TextStyle(
+                            color: Color(0xFF9CA3AF), fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
                         ),
                       ],
                     ),
@@ -713,20 +867,25 @@ class _LocationBottomSheet extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
+            // ── Confirm button ─────────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isClockedIn ? _red : _blue,
-                  foregroundColor: _white,
+                  backgroundColor: isClockedIn
+                      ? const Color(0xFFDC2626)
+                      : const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
                 child: Text(
                   isClockedIn ? 'Clock Out Now' : 'Clock In Now',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -734,7 +893,8 @@ class _LocationBottomSheet extends StatelessWidget {
             TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancel',
-                  style: TextStyle(color: _textSec, fontSize: 14)),
+                  style: TextStyle(
+                      color: Color(0xFF6B7280), fontSize: 14)),
             ),
           ],
         ],

@@ -1,5 +1,6 @@
 import '../services/api_service.dart';
 import '../models/attendance_model.dart';
+import '../../core/constants/api_constants.dart';
 
 class AttendanceRepository {
   static Future<Map<String, dynamic>> clockIn({
@@ -41,6 +42,26 @@ class AttendanceRepository {
   }) async {
     final response = await ApiService.getMonthlyCalendar(month: month, year: year);
     return MonthlyCalendar.fromJson(response['data']);
+  }
+
+
+  static Future<Map<String, dynamic>?> checkLocation({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final response = await ApiService.post(
+      ApiConstants.checkLocation,   // ✅ was hardcoded wrong path
+      {
+        'latitude': latitude,
+        'longitude': longitude,
+      },
+      requiresAuth: true,
+    );
+
+    if (response['success'] == true) {
+      return response['data'] as Map<String, dynamic>;
+    }
+    return null;
   }
 
   static Future<Map<String, dynamic>> getHistory({

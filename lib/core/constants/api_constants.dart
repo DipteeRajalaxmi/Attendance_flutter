@@ -14,5 +14,13 @@ class ApiConstants {
   static const String todayAttendance = '/api/mobile/attendance/today';
   static const String attendanceHistory = '/api/mobile/attendance/history';
   static const String calendar           = '/api/mobile/attendance/calendar';
+  static const String checkLocation     = '/api/mobile/attendance/check-location'; 
+  // Leave Endpoints
+  static const String leaveTypes    = '/api/mobile/leave/types';
+  static const String leaveBalances = '/api/mobile/leave/balances';
+  static const String leaveRequests = '/api/mobile/leave/requests';
+  static const String leaveApply    = '/api/mobile/leave/apply';
+  static const String leaveCancel   = '/api/mobile/leave/cancel';
+
 
 }
