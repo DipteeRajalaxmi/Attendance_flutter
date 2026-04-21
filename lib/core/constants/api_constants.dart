@@ -21,6 +21,9 @@ class ApiConstants {
   static const String leaveRequests = '/api/mobile/leave/requests';
   static const String leaveApply    = '/api/mobile/leave/apply';
   static const String leaveCancel   = '/api/mobile/leave/cancel';
+  // Correction endpoints
+  static const String correctionRequests = '/api/mobile/attendance/correction';
+  static const String correctionCancel   = '/api/mobile/attendance/correction/cancel';
 
 
 }

@@ -79,10 +79,13 @@ class LeaveProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      await LeaveRepository.cancelLeave(requestId);
+      final result = await LeaveRepository.cancelLeave(requestId);
+      debugPrint('>>> Cancel result: ${result.status}');
       _success = 'Leave request cancelled.';
-      await loadAll();
+      _requests.removeWhere((r) => r.id == requestId);
       notifyListeners();
+      await loadAll();
+      debugPrint('>>> After loadAll, requests: ${_requests.map((r) => "${r.id}:${r.status}").toList()}');
       return true;
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');

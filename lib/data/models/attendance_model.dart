@@ -122,6 +122,7 @@ class CalendarDay {
   final bool isLate;
   final String? clockIn;
   final String? clockOut;
+  final String? holidayName;
 
   CalendarDay({
     required this.date,
@@ -131,7 +132,8 @@ class CalendarDay {
     this.durationMinutes,
     required this.isLate,
     this.clockIn,
-  this.clockOut,
+    this.clockOut,
+    this.holidayName,
   });
 
   factory CalendarDay.fromJson(Map<String, dynamic> json) {
@@ -144,6 +146,7 @@ class CalendarDay {
       isLate:          json['is_late'] ?? false,
       clockIn: json['clock_in_time'],
       clockOut: json['clock_out_time'],
+      holidayName:  json['holiday_name'],
     );
   }
 }
@@ -181,4 +184,46 @@ class MonthlyCalendar {
       absent:  summary['absent']   ?? 0,
     );
   }
+}
+
+class CorrectionRequest {
+  final int id;
+  final String attendanceDate;
+  final String? requestedClockIn;
+  final String? requestedClockOut;
+  final String reason;
+  final String status;
+  final String? reviewComment;
+  final String? createdAt;
+  final String? reviewedAt;
+
+  CorrectionRequest({
+    required this.id,
+    required this.attendanceDate,
+    this.requestedClockIn,
+    this.requestedClockOut,
+    required this.reason,
+    required this.status,
+    this.reviewComment,
+    this.createdAt,
+    this.reviewedAt,
+  });
+
+  factory CorrectionRequest.fromJson(Map<String, dynamic> json) =>
+      CorrectionRequest(
+        id:                 json['id'],
+        attendanceDate:     json['attendance_date'],
+        requestedClockIn:   json['requested_clock_in'],
+        requestedClockOut:  json['requested_clock_out'],
+        reason:             json['reason'],
+        status:             json['status'],
+        reviewComment:      json['review_comment'],
+        createdAt:          json['created_at'],
+        reviewedAt:         json['reviewed_at'],
+      );
+
+  bool get isPending   => status == 'pending';
+  bool get isApproved  => status == 'approved';
+  bool get isRejected  => status == 'rejected';
+  bool get isCancelled => status == 'cancelled';
 }

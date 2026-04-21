@@ -44,6 +44,40 @@ class AttendanceRepository {
     return MonthlyCalendar.fromJson(response['data']);
   }
 
+  static Future<CorrectionRequest> submitCorrection({
+    required String attendanceDate,
+    required String clockIn,
+    required String clockOut,
+    required String reason,
+  }) async {
+    final response = await ApiService.post(
+      ApiConstants.correctionRequests,
+      {
+        'attendance_date':     attendanceDate,
+        'requested_clock_in':  clockIn,
+        'requested_clock_out': clockOut,
+        'reason':              reason,
+      },
+      requiresAuth: true,
+    );
+    return CorrectionRequest.fromJson(response['data']);
+  }
+
+
+
+  static Future<Map<String, dynamic>> getCorrections() async {
+    final response = await ApiService.get(
+      ApiConstants.correctionRequests,
+      requiresAuth: true,
+    );
+    final data = response['data'];
+    return {
+      'requests': (data['requests'] as List)
+          .map((e) => CorrectionRequest.fromJson(e))
+          .toList(),
+      'total': data['total'],
+    };
+  }
 
   static Future<Map<String, dynamic>?> checkLocation({
     required double latitude,
@@ -81,3 +115,4 @@ class AttendanceRepository {
     };
   }
 }
+
