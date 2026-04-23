@@ -27,6 +27,8 @@ class AttendanceProvider extends ChangeNotifier {
   String?             get errorMessage   => _errorMessage;
   String?             get successMessage => _successMessage;
   bool                get isLoading      => _status == AttendanceActionStatus.loading;
+  String? _clockOutWarning;
+  String? get clockOutWarning => _clockOutWarning;
 
   // ── load today on home screen open ────────────────────────────────────────
   Future<void> loadToday() async {
@@ -85,36 +87,39 @@ class AttendanceProvider extends ChangeNotifier {
     }
   }
 
-  // ── clock out ─────────────────────────────────────────────────────────────
-  Future<bool> clockOut({
-    required double latitude,
-    required double longitude,
-  }) async {
-    _status       = AttendanceActionStatus.loading;
-    _errorMessage = null;
-    notifyListeners();
+ Future<bool> clockOut({
+  required double latitude,
+  required double longitude,
+}) async {
+  _status         = AttendanceActionStatus.loading;
+  _errorMessage   = null;
+  _clockOutWarning = null;
+  notifyListeners();
 
-    try {
-      final log = await AttendanceRepository.clockOut(
-        latitude: latitude,
-        longitude: longitude,
-      );
-      _today  = TodayStatus(
-        hasClockedIn:  true,
-        hasClockedOut: true,
-        log:           log,
-      );
-      _successMessage = 'Clocked out · ${log.durationFormatted} logged';
-      _status         = AttendanceActionStatus.success;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = _clean(e);
-      _status       = AttendanceActionStatus.error;
-      notifyListeners();
-      return false;
-    }
+  try {
+    final result = await AttendanceRepository.clockOut(
+      latitude: latitude,
+      longitude: longitude,
+    );
+    final log = result['log'] as AttendanceLog;
+    _clockOutWarning = result['warning'] as String?; // ← capture warning
+
+    _today = TodayStatus(
+      hasClockedIn:  true,
+      hasClockedOut: true,
+      log:           log,
+    );
+    _successMessage = 'Clocked out · ${log.durationFormatted} logged';
+    _status         = AttendanceActionStatus.success;
+    notifyListeners();
+    return true;
+  } catch (e) {
+    _errorMessage = _clean(e);
+    _status       = AttendanceActionStatus.error;
+    notifyListeners();
+    return false;
   }
+}
 
   // ── history ───────────────────────────────────────────────────────────────
   Future<void> loadHistory() async {
@@ -127,8 +132,9 @@ class AttendanceProvider extends ChangeNotifier {
   }
 
   void clearMessages() {
-    _errorMessage   = null;
-    _successMessage = null;
+    _errorMessage    = null;
+    _successMessage  = null;
+    _clockOutWarning = null; 
     if (_status == AttendanceActionStatus.error) {
       _status = AttendanceActionStatus.idle;
     }

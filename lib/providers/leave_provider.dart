@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import '../data/models/leave_model.dart';
 import '../data/repositories/leave_repository.dart';
+import 'notification_provider.dart';
+
 
 class LeaveProvider extends ChangeNotifier {
   List<LeaveBalance>  _balances  = [];
@@ -11,6 +13,8 @@ class LeaveProvider extends ChangeNotifier {
   bool                _applying  = false;
   String?             _error;
   String?             _success;
+  NotificationProvider? _notificationProvider;
+
 
   List<LeaveBalance>  get balances  => _balances;
   List<LeaveType>     get types     => _types;
@@ -21,6 +25,12 @@ class LeaveProvider extends ChangeNotifier {
   String?             get error     => _error;
   String?             get success   => _success;
 
+
+  void setNotificationProvider(NotificationProvider np) {
+    _notificationProvider = np;
+  }
+
+    
   Future<void> loadAll() async {
     _loading = true;
     _error   = null;
@@ -34,15 +44,24 @@ class LeaveProvider extends ChangeNotifier {
       _balances = results[0] as List<LeaveBalance>;
       _types    = results[1] as List<LeaveType>;
       final reqResult = results[2] as Map<String, dynamic>;
-      _requests = reqResult['requests'] as List<LeaveRequest>;
+      _requests = reqResult['requests'] as List<LeaveRequest>; // ← new requests assigned
       _total    = reqResult['total'] as int;
+
+      // ← CHECK if any request changed from pending → approved/rejected
+      for (final req in _requests) {
+        if (req.status == 'approved' || req.status == 'rejected') {
+          _notificationProvider?.addNotificationIfNew(req.id, req.leaveName ?? 'Leave', req.status, req.startDate);
+        }
+      }
+
     } catch (e) {
       _error = e.toString().replaceFirst('Exception: ', '');
     }
     _loading = false;
     notifyListeners();
   }
-
+    
+  
   Future<bool> applyLeave({
     required int leaveTypeId,
     required String startDate,

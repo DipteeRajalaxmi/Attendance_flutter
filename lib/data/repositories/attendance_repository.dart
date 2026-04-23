@@ -20,7 +20,7 @@ class AttendanceRepository {
     };
   }
 
-  static Future<AttendanceLog> clockOut({
+  static Future<Map<String, dynamic>> clockOut({
     required double latitude,
     required double longitude,
   }) async {
@@ -28,7 +28,11 @@ class AttendanceRepository {
       latitude: latitude,
       longitude: longitude,
     );
-    return AttendanceLog.fromJson(response['data']['log']);
+    final data = response['data'];
+    return {
+      'log':     AttendanceLog.fromJson(data['log']),
+      'warning': data['warning'] as String?, // wfh_warning from backend
+    };
   }
 
   static Future<TodayStatus> getTodayStatus() async {

@@ -16,6 +16,17 @@ class ApiService {
       if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
       }
+
+      // ── Device binding: send device_id on every authenticated request ──
+      try {
+        final deviceInfo = await _getDeviceInfo();
+        final deviceId = deviceInfo['device_id'];
+        if (deviceId != null && deviceId.isNotEmpty) {
+          headers['X-Device-ID'] = deviceId;
+        }
+      } catch (_) {
+        // Never block a request due to device info failure
+      }
     }
 
     return headers;

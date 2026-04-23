@@ -5,18 +5,23 @@ import 'providers/attendance_provider.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/main_screen.dart';
 import 'package:attendance_app/providers/leave_provider.dart';
+import 'providers/notification_provider.dart';
 
 
 void main() {
   runApp(
     MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => AttendanceProvider()),
-        ChangeNotifierProvider(create: (_) => LeaveProvider()),
-      ],
-      child: const WorkEyeApp(),
-    ),
+    providers: [
+      ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ChangeNotifierProvider(create: (_) => AttendanceProvider()),
+      ChangeNotifierProvider(create: (_) => NotificationProvider()),
+      ChangeNotifierProxyProvider<NotificationProvider, LeaveProvider>(
+        create: (_) => LeaveProvider(),
+        update: (_, np, lp) => lp!..setNotificationProvider(np),
+      ),
+    ],
+    child: const WorkEyeApp(),
+  ),
   );
 }
 
@@ -46,20 +51,26 @@ class _SplashGate extends StatefulWidget {
 }
 
 class _SplashGateState extends State<_SplashGate> {
+
   @override
   void initState() {
     super.initState();
-    context.read<AuthProvider>().checkAuthStatus().then((_) {
-      if (!mounted) return;
-      final status = context.read<AuthProvider>().status;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => status == AuthStatus.authenticated
-              ? const MainScreen()
-              : const LoginScreen(),
-        ),
-      );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().checkAuthStatus().then((_) {
+        if (!mounted) return;
+        final status = context.read<AuthProvider>().status;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => status == AuthStatus.authenticated
+                  ? const MainScreen()
+                  : const LoginScreen(),
+            ),
+          );
+        });
+      });
     });
   }
 

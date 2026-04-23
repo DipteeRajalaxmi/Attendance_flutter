@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'home/home_screen.dart';
 import 'attendance/attendance_screen.dart';
 import 'leaves/leaves_screen.dart';
+import 'profile/profile_screen.dart';
 
 const _blue    = Color(0xFF2563EB);
 const _textSec = Color(0xFF6B7280);
@@ -22,6 +23,7 @@ class _MainScreenState extends State<MainScreen> {
     HomeScreen(),
     AttendanceScreen(),
     LeavesScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -50,32 +52,35 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ],
         ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 64,
-            child: Row(
-              children: [
-                _NavItem(
-                  icon:       Icons.home_rounded,
-                  label:      'Home',
-                  isSelected: _currentIndex == 0,
-                  onTap:      () => _onTap(0),
-                ),
-                _NavItem(
-                  icon:       Icons.calendar_month_rounded,
-                  label:      'Attendance',
-                  isSelected: _currentIndex == 1,
-                  onTap:      () => _onTap(1),
-                ),
-                _NavItem(
-                  icon:       Icons.event_note_rounded,
-                  label:      'Leaves',
-                  isSelected: _currentIndex == 2,
-                  onTap:      () => _onTap(2),
-                ),
-              ],
-            ),
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              _NavItem(
+                icon:       Icons.home_rounded,
+                label:      'Home',
+                isSelected: _currentIndex == 0,
+                onTap:      () => _onTap(0),
+              ),
+              _NavItem(
+                icon:       Icons.calendar_month_rounded,
+                label:      'Attendance',
+                isSelected: _currentIndex == 1,
+                onTap:      () => _onTap(1),
+              ),
+              _NavItem(
+                icon:       Icons.event_note_rounded,
+                label:      'Leaves',
+                isSelected: _currentIndex == 2,
+                onTap:      () => _onTap(2),
+              ),
+              _NavItem(
+                icon:       Icons.person_rounded,
+                label:      'Profile',
+                isSelected: _currentIndex == 3,
+                onTap:      () => _onTap(3),
+              ),
+            ],
           ),
         ),
       ),
