@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/attendance_provider.dart';
+import '../../../data/services/api_service.dart';
 import '../auth/login_screen.dart';
 
 const _navy      = Color(0xFF0D1B3E);
@@ -23,8 +24,176 @@ const _textHint  = Color(0xFF8F9BBF);
 const _border    = Color(0xFFDDE3F5);
 const _shadow    = Color(0x1A0D1B3E);
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+
+  void _showChangePasswordSheet(BuildContext context) {
+    final currentCtrl = TextEditingController();
+    final newCtrl     = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool obscureCurrent = true;
+    bool obscureNew     = true;
+    bool obscureConfirm = true;
+    bool isLoading      = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: _white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            padding: const EdgeInsets.fromLTRB(24, 14, 24, 32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(width: 40, height: 4,
+                decoration: BoxDecoration(
+                    color: _border, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 20),
+              const Text('Change Password',
+                  style: TextStyle(color: _textPri, fontSize: 19,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(height: 24),
+
+              _passwordField(
+                controller: currentCtrl,
+                label: 'Current Password',
+                obscure: obscureCurrent,
+                onToggle: () => setSheetState(
+                    () => obscureCurrent = !obscureCurrent),
+              ),
+              const SizedBox(height: 14),
+
+              _passwordField(
+                controller: newCtrl,
+                label: 'New Password',
+                obscure: obscureNew,
+                onToggle: () => setSheetState(
+                    () => obscureNew = !obscureNew),
+              ),
+              const SizedBox(height: 14),
+
+              _passwordField(
+                controller: confirmCtrl,
+                label: 'Confirm New Password',
+                obscure: obscureConfirm,
+                onToggle: () => setSheetState(
+                    () => obscureConfirm = !obscureConfirm),
+              ),
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity, height: 52,
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : () async {
+                    if (newCtrl.text != confirmCtrl.text) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Passwords do not match'),
+                          backgroundColor: Colors.red,
+                        ));
+                      return;
+                    }
+                    if (newCtrl.text.length < 6) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Password must be at least 6 characters'),
+                          backgroundColor: Colors.red,
+                        ));
+                      return;
+                    }
+                    setSheetState(() => isLoading = true);
+                    try {
+                      final response = await ApiService.post(
+                        '/api/mobile/auth/change-password',
+                        {
+                          'current_password': currentCtrl.text,
+                          'new_password':     newCtrl.text,
+                        },
+                        requiresAuth: true,
+                      );
+                      if (!ctx.mounted) return;
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(response['message'] ?? 'Password changed!'),
+                        backgroundColor: _green,
+                      ));
+                    } catch (e) {
+                      setSheetState(() => isLoading = false);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(e.toString()
+                            .replaceFirst('Exception: ', '')),
+                        backgroundColor: _red,
+                      ));
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _cyan,
+                    foregroundColor: _white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: isLoading
+                      ? const SizedBox(width: 22, height: 22,
+                          child: CircularProgressIndicator(
+                              color: _white, strokeWidth: 2.5))
+                      : const Text('Update Password',
+                          style: TextStyle(fontSize: 15,
+                              fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _passwordField({
+    required TextEditingController controller,
+    required String label,
+    required bool obscure,
+    required VoidCallback onToggle,
+  }) =>
+    TextField(
+      controller: controller,
+      obscureText: obscure,
+      style: const TextStyle(color: _textPri, fontSize: 15),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: _textHint, fontSize: 13),
+        suffixIcon: IconButton(
+          icon: Icon(
+            obscure ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+            color: _textHint, size: 20),
+          onPressed: onToggle,
+        ),
+        filled: true,
+        fillColor: _offWhite,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _border)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _border)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _cyan, width: 1.5)),
+      ),
+    );
 
   @override
   Widget build(BuildContext context) {
@@ -32,13 +201,11 @@ class ProfileScreen extends StatelessWidget {
     final member   = auth.member;
     final calendar = context.watch<AttendanceProvider>().calendar;
 
-    // initials
     final initials = (member?.name.isNotEmpty == true)
         ? member!.name.trim().split(' ')
             .take(2).map((w) => w[0].toUpperCase()).join()
         : 'U';
 
-    // joined date
     String joinedLabel = '—';
     if (member?.registeredAt != null) {
       final dt = DateTime.tryParse(member!.registeredAt!);
@@ -65,7 +232,6 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
                 child: Column(children: [
-                  // Avatar
                   Container(
                     width: 84, height: 84,
                     decoration: BoxDecoration(
@@ -91,16 +257,12 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-
-                  // Name
                   Text(member?.name ?? 'Employee',
                       style: const TextStyle(
                           color: _white,
                           fontSize: 22,
                           fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
-
-                  // Dept + position pills
                   Wrap(
                     spacing: 8, runSpacing: 6,
                     alignment: WrapAlignment.center,
@@ -108,8 +270,7 @@ class ProfileScreen extends StatelessWidget {
                       if (member?.department != null)
                         _pill(member!.department!, _cyan),
                       if (member?.position != null)
-                        _pill(member!.position!,
-                            _white.withOpacity(0.7)),
+                        _pill(member!.position!, _white.withOpacity(0.7)),
                     ],
                   ),
                 ]),
@@ -124,13 +285,13 @@ class ProfileScreen extends StatelessWidget {
                     _sectionLabel('PERSONAL INFO'),
                     const SizedBox(height: 12),
                     _infoCard([
-                      _infoRow(Icons.person_rounded,     'Full Name',   member?.name ?? '—'),
-                      _infoRow(Icons.email_rounded,      'Email',       member?.email ?? '—'),
-                      _infoRow(Icons.business_rounded,   'Department',  member?.department ?? '—'),
-                      _infoRow(Icons.work_rounded,       'Position',    member?.position ?? '—'),
-                      _infoRow(Icons.calendar_today_rounded, 'Joined',  joinedLabel),
+                      _infoRow(Icons.person_rounded,     'Full Name',  member?.name ?? '—'),
+                      _infoRow(Icons.email_rounded,      'Email',      member?.email ?? '—'),
+                      _infoRow(Icons.business_rounded,   'Department', member?.department ?? '—'),
+                      _infoRow(Icons.work_rounded,       'Position',   member?.position ?? '—'),
+                      _infoRow(Icons.calendar_today_rounded, 'Joined', joinedLabel),
                       if (member?.employeeId != null)
-                        _infoRow(Icons.badge_rounded,    'Employee ID', member!.employeeId!),
+                        _infoRow(Icons.badge_rounded, 'Employee ID', member!.employeeId!),
                     ]),
 
                     const SizedBox(height: 24),
@@ -142,22 +303,18 @@ class ProfileScreen extends StatelessWidget {
                       Column(children: [
                         Row(children: [
                           _statCard('Present',  '${calendar.present}',
-                              _green, _greenPale,
-                              Icons.check_circle_rounded),
+                              _green, _greenPale, Icons.check_circle_rounded),
                           const SizedBox(width: 10),
                           _statCard('Absent',   '${calendar.absent}',
-                              _red, _redPale,
-                              Icons.cancel_rounded),
+                              _red, _redPale, Icons.cancel_rounded),
                         ]),
                         const SizedBox(height: 10),
                         Row(children: [
                           _statCard('Half Day', '${calendar.halfDay}',
-                              _amber, _amberPale,
-                              Icons.wb_sunny_rounded),
+                              _amber, _amberPale, Icons.wb_sunny_rounded),
                           const SizedBox(width: 10),
                           _statCard('On Leave', '${calendar.onLeave}',
-                              _cyan, _cyanPale,
-                              Icons.event_busy_rounded),
+                              _cyan, _cyanPale, Icons.event_busy_rounded),
                         ]),
                       ])
                     else
@@ -170,12 +327,33 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         child: const Center(
                           child: Text('Load Attendance tab to see stats',
-                              style: TextStyle(
-                                  color: _textHint, fontSize: 13)),
+                              style: TextStyle(color: _textHint, fontSize: 13)),
                         ),
                       ),
 
                     const SizedBox(height: 32),
+
+                    // ── Change Password ────────────────────────────────
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showChangePasswordSheet(context),
+                        icon: const Icon(Icons.lock_reset_rounded, size: 18),
+                        label: const Text('Change Password',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _cyanPale,
+                          foregroundColor: _cyanDeep,
+                          elevation: 0,
+                          side: BorderSide(color: _cyan.withOpacity(0.3)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
                     // ── Logout ─────────────────────────────────────────
                     SizedBox(
@@ -194,14 +372,12 @@ class ProfileScreen extends StatelessWidget {
                         icon: const Icon(Icons.logout_rounded, size: 18),
                         label: const Text('Logout',
                             style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700)),
+                                fontSize: 15, fontWeight: FontWeight.w700)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _redPale,
                           foregroundColor: _red,
                           elevation: 0,
-                          side: BorderSide(
-                              color: _red.withOpacity(0.3)),
+                          side: BorderSide(color: _red.withOpacity(0.3)),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
                         ),
@@ -218,7 +394,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // ── helpers ──────────────────────────────────────────────────────────────
+  // ── helpers ───────────────────────────────────────────────────────────────
   Widget _pill(String text, Color color) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
     decoration: BoxDecoration(
@@ -243,10 +419,8 @@ class ProfileScreen extends StatelessWidget {
     const SizedBox(width: 8),
     Text(label,
         style: const TextStyle(
-            color: _textSec,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.2)),
+            color: _textSec, fontSize: 11,
+            fontWeight: FontWeight.w700, letterSpacing: 1.2)),
   ]);
 
   Widget _infoCard(List<Widget> rows) => Container(
@@ -254,49 +428,37 @@ class ProfileScreen extends StatelessWidget {
       color: _white,
       borderRadius: BorderRadius.circular(20),
       border: Border.all(color: _border),
-      boxShadow: [
-        BoxShadow(color: _shadow, blurRadius: 10,
-            offset: const Offset(0, 3))
-      ],
+      boxShadow: [BoxShadow(color: _shadow, blurRadius: 10,
+          offset: const Offset(0, 3))],
     ),
     child: Column(children: [
       for (int i = 0; i < rows.length; i++) ...[
         rows[i],
         if (i < rows.length - 1)
-          Divider(height: 1, color: _border,
-              indent: 56, endIndent: 16),
+          Divider(height: 1, color: _border, indent: 56, endIndent: 16),
       ],
     ]),
   );
 
   Widget _infoRow(IconData icon, String label, String value) =>
     Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(children: [
         Container(
           width: 36, height: 36,
           decoration: BoxDecoration(
-            color: _cyanPale,
-            borderRadius: BorderRadius.circular(10),
-          ),
+            color: _cyanPale, borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, color: _cyan, size: 17),
         ),
         const SizedBox(width: 14),
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: const TextStyle(
-                    color: _textHint,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500)),
+            Text(label, style: const TextStyle(
+                color: _textHint, fontSize: 11, fontWeight: FontWeight.w500)),
             const SizedBox(height: 2),
-            Text(value,
-                style: const TextStyle(
-                    color: _textPri,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600)),
+            Text(value, style: const TextStyle(
+                color: _textPri, fontSize: 14, fontWeight: FontWeight.w600)),
           ],
         )),
       ]),
@@ -306,29 +468,21 @@ class ProfileScreen extends StatelessWidget {
       Color color, Color bg, IconData icon) =>
     Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(
-            vertical: 16, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: color.withOpacity(0.2)),
-          boxShadow: [
-            BoxShadow(color: color.withOpacity(0.08),
-                blurRadius: 8, offset: const Offset(0, 2))
-          ],
+          boxShadow: [BoxShadow(color: color.withOpacity(0.08),
+              blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Column(children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(height: 8),
-          Text(value,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800)),
+          Text(value, style: TextStyle(
+              color: color, fontSize: 24, fontWeight: FontWeight.w800)),
           const SizedBox(height: 3),
-          Text(label,
-              style: const TextStyle(
-                  color: _textHint, fontSize: 11),
+          Text(label, style: const TextStyle(color: _textHint, fontSize: 11),
               textAlign: TextAlign.center),
         ]),
       ),
