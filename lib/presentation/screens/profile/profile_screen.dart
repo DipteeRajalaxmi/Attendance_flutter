@@ -302,7 +302,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     if (calendar != null)
                       Column(children: [
                         Row(children: [
-                          _statCard('Present',  '${calendar.present}',
+                          _statCard('Full Day Present',  '${calendar.present}',
                               _green, _greenPale, Icons.check_circle_rounded),
                           const SizedBox(width: 10),
                           _statCard('Absent',   '${calendar.absent}',

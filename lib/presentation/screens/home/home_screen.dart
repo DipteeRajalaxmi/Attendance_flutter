@@ -258,20 +258,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Text(member?.name ?? 'Employee', style: const TextStyle(color: _white, fontSize: 16, fontWeight: FontWeight.w800)),
           ])),
           if (member?.department != null) ...[
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _cyan.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _cyan.withOpacity(0.35)),
-                ),
-                child: Text(
-                  member!.department!,
-                  style: const TextStyle(color: _cyan, fontSize: 11, fontWeight: FontWeight.w700),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
+            Container(
+              constraints: const BoxConstraints(maxWidth: 110),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: _cyan.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _cyan.withOpacity(0.35)),
+              ),
+              child: Text(
+                member!.department!,
+                style: const TextStyle(color: _cyan, fontSize: 11, fontWeight: FontWeight.w700),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
             const SizedBox(width: 8),

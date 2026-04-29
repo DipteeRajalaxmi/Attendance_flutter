@@ -244,7 +244,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
 
   Widget _buildSummaryRow(MonthlyCalendar calendar) {
     return Row(children: [
-      _summaryCard('Present',  '${calendar.present}',  _green, _greenPale,  Icons.check_circle_rounded),
+      _summaryCard('Full Day Present',  '${calendar.present}',  _green, _greenPale,  Icons.check_circle_rounded),
       const SizedBox(width: 10),
       _summaryCard('Half Day', '${calendar.halfDay}',  _amber, _amberPale,  Icons.timelapse_rounded),
       const SizedBox(width: 10),
@@ -609,7 +609,20 @@ class _CorrectionSheetState extends State<_CorrectionSheet> {
     try {
       await AttendanceRepository.submitCorrection(attendanceDate: widget.day.date, clockIn: _fmtT(_clockIn), clockOut: _fmtT(_clockOut), reason: _reasonCtrl.text.trim());
       if (mounted) { Navigator.pop(context); _snack('Correction submitted!', _green); }
-    } catch (e) { if (mounted) _snack(e.toString().replaceFirst('Exception: ', ''), _red); }
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        final isWarning = msg.contains('already exists');
+        Navigator.pop(context); // close sheet first, then snackbar is always visible
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(msg, style: const TextStyle(color: _white, fontWeight: FontWeight.w600)),
+          backgroundColor: isWarning ? _amber : _red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ));
+      }
+}
     if (mounted) setState(() => _submitting = false);
   }
 
